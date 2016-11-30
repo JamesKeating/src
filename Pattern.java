@@ -21,17 +21,14 @@ public class Pattern {
             }
         }
         this.score = score;
-
     }
 
     public int findPattern(Position position, Player p){
-
 
         int[][] orientations = {{0, 1},{1, -1}, {1, 0} , {0, -1}, {-1, 1}, {-1, 0}};
         int cap = 6;
         if(symetric)
             cap = 3;
-
 
         int score = 0;
         for(int row = 1; row < 10; row++){
@@ -53,15 +50,13 @@ public class Pattern {
                 matchCheck = " ";
             }
 
-
             else
                 matchCheck = p.getPlayerSymbol();
 
-            if (board[row][col].toString().equals(matchCheck) == !pat.equals("O")){
+            if (board[row][col].toString().equals(matchCheck)){
                 row += orientation[0];
                 col += orientation[1];
             }
-
 
             else
                 return 0;

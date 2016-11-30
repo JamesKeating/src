@@ -13,10 +13,9 @@ import static com.sun.org.apache.xml.internal.serialize.OutputFormat.Defaults.In
  */
 public class Position {
 
-    private boolean swap = true;
+    private int swap = 0;
     private Cell[][] position;
     private Player currentPlayer, nextPlayer;
-
 
     public Position(Player currentPlayer, Player nextPlayer, String fileName) {
         int boardSize = 11;
@@ -24,33 +23,6 @@ public class Position {
         setBorderValues(this.position, fileName);
         this.currentPlayer = currentPlayer;
         this.nextPlayer = nextPlayer;
-
-    }
-
-    public Position(Position another) {
-        int boardSize = 11;
-        this.position = new Cell[boardSize][boardSize];
-        for (int row = 0; row < 11; row++){
-            for (int col = 0; col < 11; col++){
-                this.position[row][col] = new Cell(another.getPosition()[row][col]);
-            }
-        }
-        this.swap = another.swap;
-        if (!another.getCurrentPlayer().isHuman()){
-            this.currentPlayer = new Player(another.getCurrentPlayer().getPlayerName(),
-                another.getCurrentPlayer().getPlayerSymbol(), another.getCurrentPlayer().getPlayerAI());
-        }
-        else
-            this.currentPlayer = new Player(another.getCurrentPlayer().getPlayerName(),
-                    another.getCurrentPlayer().getPlayerSymbol());
-
-        if(!another.getNextPlayer().isHuman()){
-            this.nextPlayer = new Player(another.getNextPlayer().getPlayerName(),
-                another.getNextPlayer().getPlayerSymbol(), another.getNextPlayer().getPlayerAI());
-        }
-        else
-            this.nextPlayer = new Player(another.getNextPlayer().getPlayerName(),
-                    another.getNextPlayer().getPlayerSymbol());
     }
 
     public Cell[][] getPosition() {
@@ -67,7 +39,7 @@ public class Position {
 
     private void setBorderValues(Cell[][] cells, String filename) {
         int row = 0, col = 0;
-        try (BufferedReader br = new BufferedReader(new FileReader("D:\\AI2\\src\\borderValues"))) {//fix with file name
+        try (BufferedReader br = new BufferedReader(new FileReader(filename))) {//fix with file name
             String line;
             while ((line = br.readLine()) != null) {
                 for (String value : line.split(" ")) {
@@ -81,9 +53,118 @@ public class Position {
                 col = 0;
             }
         } catch (Exception e) {
-            System.out.println("Error reading file");
+            System.out.println("Error reading file check the file name in your gameManager");
+            System.exit(0);
         }
 
+    }
+
+
+
+    public void makeMove(){
+        String move;
+
+        if (currentPlayer.isHuman()) {
+            Scanner reader = new Scanner(System.in);  // Reading from System.in
+            System.out.println(currentPlayer.getPlayerName() + " please enter your move:  ");
+            move = reader.nextLine();
+        }
+
+        else {
+            System.out.println(currentPlayer.getPlayerName() + " is making his move now");
+            this.currentPlayer.getPlayerAI().makeMove(this);
+            updatePlayers();
+            swap++;
+            return;
+        }
+
+        Cell x = validateMove(move);
+        if (x != null){
+            x.setCellValue(currentPlayer.getPlayerSymbol());
+            x.setPlayable(false);
+            swap++;
+            updatePlayers();
+        }
+
+        else {
+            if (move.equals("X")) {
+                if (swap == 1) {
+                    int[] opening = takeOpening();
+                    position[opening[0]][opening[1]].setCellValue(currentPlayer.getPlayerSymbol());
+                    swap++;
+                    updatePlayers();
+                    return;
+                }
+                else
+                    System.out.println("Swapping moves is not valid this turn.");
+            }
+            System.out.println("Invlaid move try again.");
+            makeMove();
+        }
+
+
+    }
+
+    public int[] takeOpening(){
+
+        for (int row = 1; row < 10; row++ ) {
+            for(int col = 1; col < 10; col++){
+                if(!position[row][col].toString().equals(" ")){
+                    return new int[]{row, col};
+                }
+            }
+        }
+        return null;
+
+    }
+
+    private Cell validateMove(String input){
+        if (input.length() != 2){
+            if (input.length()>2)
+                System.out.println("Error too many characters.");
+            return null;
+        }
+
+        int row = (int)input.charAt(0)- 64;
+        int col = Character.getNumericValue(input.charAt(1));
+
+        if (row < 6)
+            col += 5 - row;
+
+        if (row >= 1 && row <= 10 && col < 10){
+            if (this.position[row][col].getPlayable()) {
+                return this.position[row][col];
+            }
+        }
+        System.out.println("Invalid values entered. \nPlease try in the format: [A-I][1-9]" +
+                "\nNote: all [1-9] values are not valid for every row. ");
+        return null;
+
+    }
+
+    //if it returns non 0 game is terminal.
+    //dosn't return boolean as value is used as game state value
+    public int isTerminal(){
+        //terminal last player to move won
+        if (new Pattern("P-P-P-P", 100).findPattern(this, nextPlayer) > 0) {
+            return Integer.MAX_VALUE-2;
+        }
+
+        //terminal last player to move lost
+        if  (new Pattern("P-P-P", 100).findPattern(this, nextPlayer) > 0){
+            return -Integer.MAX_VALUE+1;
+        }
+
+        //not terminal
+        for (Cell[] row : position){
+            for (Cell col : row){
+                if (col.getCellBorder() == 7 && col.getPlayable())
+                    return 0;
+            }
+        }
+
+        //terminal draw no valid moves left
+        return 1;
     }
 
     public String toString() {
@@ -108,7 +189,7 @@ public class Position {
             positionAsString += newLine;
             indent += "  ";
         }
-        //positionAsString += getGameStatusMessage();
+
         return positionAsString;
     }
 
@@ -120,101 +201,17 @@ public class Position {
         return "  ";
     }
 
-    public void makeMove(){
-        String move;
-        //System.out.println(currentPlayer.getPlayerName() +"=========" + currentPlayer.isHuman());
-        if (currentPlayer.isHuman()) {
-            Scanner reader = new Scanner(System.in);  // Reading from System.in
-            System.out.println(currentPlayer.getPlayerName() + " please enter your move:  ");
-            move = reader.nextLine();
-        }
-
-        else {
-            this.currentPlayer.getPlayerAI().makeMove(this);
-            updatePlayers();
-            return;
-        }
-
-
-
-        Cell x = validateMove(move);
-        if (x != null){
-            x.setCellValue(currentPlayer.getPlayerSymbol());
-            x.setPlayable(false);
-            updatePlayers();
-        }
-
-        else {
-            if (move.equals("X") && swap) {
-                if (takeOpening(currentPlayer))
-                    return;
-            }
-            System.out.println("Invlaid move try again");
-            makeMove();
-        }
-
-
-    }
-
-    private boolean takeOpening(Player player){
-        Cell opening = null;
-        int startCol , endCol = 10;
-        for (Cell[] row : position) {
-            for(Cell cell : row){
-                if(cell.toString().equals(" ")){
-                    if (opening != null)
-                        return false;
-                    opening = cell;
-                }
-            }
-        }
-        if (opening != null){
-            opening.setCellValue(player.getPlayerSymbol());
-            swap = false;
-            return true;
-        }
-        return false;
-    }
-
-    private Cell validateMove(String input){
-        if (input.length() != 2){
-            System.out.println("Error too many characters");
-            return null;
-        }
-
-        int row = (int)input.charAt(0)- 64;
-        int col = Character.getNumericValue(input.charAt(1));
-
-        if (row < 6)
-            col += 5 - row;
-
-        if (row >= 1 && row <= 10 && col < 10){
-            if (this.position[row][col].getPlayable()) {
-                return this.position[row][col];
-            }
-        }
-        System.out.println("invalid values");
-        return null;
-
-    }
-
-    public int isTerminal(){
-
-        if  (new Pattern("O-P-P-P-O", 100).findPattern(this, nextPlayer) > 0){
-            return -Integer.MAX_VALUE+1;
-        }
-
-        if (new Pattern("P-P-P-P", 100).findPattern(this, nextPlayer) > 0) {
-            return Integer.MAX_VALUE;
-        }
-
-        return 0;
-    }
-
     public void updatePlayers(){
         Player temp = currentPlayer;
         currentPlayer = nextPlayer;
         nextPlayer = temp;
     }
 
+    public int getSwap() {
+        return swap;
+    }
+
+    public void setSwap(int swap) {
+        this.swap = swap;
+    }
 }

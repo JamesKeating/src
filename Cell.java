@@ -9,20 +9,14 @@ import java.util.ArrayList;
 public class Cell {
 
     private String cellValue;
-    private String blankCell = " ";
     private int cellBorder;
     private Boolean isPlayable = false;
 
     public Cell(){
-        this.cellValue = blankCell;
+        this.cellValue = " ";
         this.cellBorder = -1;
     }
 
-    public Cell(Cell another){
-        this.cellValue = another.toString();
-        this.cellBorder = another.getCellBorder();
-        this.isPlayable = another.isPlayable;
-    }
 
     public Boolean getPlayable() {
         return this.isPlayable;
